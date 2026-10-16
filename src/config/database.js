@@ -1,12 +1,11 @@
 const mongoose = require("mongoose");
+
 const connectDB = async () => {
   try {
-    await mongoose.connect(
-      "mongodb+srv://ansariaadil2623_db_user:jh7roDpDJ847Qz2h@cluster0.ojrnqia.mongodb.net/devTinder",
-    );
-    console.log("MongoDB connected");
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log("MongoDB connected successfully");
   } catch (error) {
-    console.error("Error connecting to MongoDB:", error);
+    console.error("Error connecting to MongoDB:", error.message);
     process.exit(1);
   }
 };
