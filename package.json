@@ -19,6 +19,7 @@
   "homepage": "https://github.com/aadil124/dev-tinder#readme",
   "dependencies": {
     "express": "^5.3.0",
+    "mongoose": "^9.11.2",
     "nodemon": "^3.1.14"
   }
 }
