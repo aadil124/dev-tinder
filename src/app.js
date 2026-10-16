@@ -2,15 +2,11 @@ const express = require("express");
 const connectDB = require("./config/database");
 const app = express();
 const User = require("./models/user");
+require("dotenv").config();
+app.use(express.json()); // middleware to parse JSON request bodies
 
 app.post("/signup", async (req, res) => {
-  const user = new User({
-    firstName: "Adil",
-    lastName: "Ansari",
-    email: "ansariaadil2623@gmail.com",
-    password: "password123",
-  });
-
+  const user = new User(req.body);
   await user.save();
 
   try {
