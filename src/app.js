@@ -47,36 +47,56 @@ app.post("/signup", async (req, res) => {
   }
 });
 
-//delete user by id
-// app.delete("/user", async (req, res) => {
-//   const userId = req.body.userId;
-//   try {
-//     const deletedUser = await User.findByIdAndDelete(userId);
-//     if (!deletedUser) {
-//       return res.status(404).send("User not found");
-//     } else {
-//       res.status(200).send("User deleted successfully");
-//     }
-//   } catch (err) {
-//     res.status(500).send("Internal Server Error");
-//   }
-// });
-
-//update user by id
-app.patch("/user", async (req, res) => {
+// delete user by id
+app.delete("/user", async (req, res) => {
   const userId = req.body.userId;
-  const updateData = req.body.updateData;
+  try {
+    const deletedUser = await User.findByIdAndDelete(userId);
+    if (!deletedUser) {
+      return res.status(404).send("User not found");
+    } else {
+      res.status(200).send("User deleted successfully");
+    }
+  } catch (err) {
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+// Update user by ID
+app.patch("/user", async (req, res) => {
+  const { userId, ...updateData } = req.body;
+
+  console.log("Update Data:", updateData);
 
   try {
-    const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
-      new: true,
-    });
+    if (!userId) {
+      return res.status(400).send("User ID is required");
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).send("Update data is required");
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateData },
+      {
+        returnDocument: "after",
+        runValidators: true,
+      },
+    );
+
     if (!updatedUser) {
       return res.status(404).send("User not found");
     }
-    res.status(200).send(updatedUser);
+
+    res.status(200).json({
+      message: "User updated successfully",
+      user: updatedUser,
+    });
   } catch (err) {
-    res.status(400).send("some thing went wrong");
+    console.error("Error updating user:", err);
+    res.status(400).send("Something went wrong");
   }
 });
 
