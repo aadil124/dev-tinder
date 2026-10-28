@@ -4,6 +4,7 @@ const app = express();
 const User = require("./models/user");
 require("dotenv").config();
 const mongoose = require("mongoose");
+const validator = require("validator");
 app.use(express.json()); // middleware to parse JSON request bodies
 
 //get all users
@@ -37,14 +38,43 @@ app.get("/user", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-app.post("/signup", async (req, res) => {
-  const user = new User(req.body);
-  await user.save();
 
+app.post("/signup", async (req, res) => {
   try {
-    res.status(201).send("User created successfully");
+    const { email, password } = req.body;
+
+    // 1. Validate email
+    if (!email || !validator.isEmail(email)) {
+      return res.status(400).send("Invalid email format");
+    }
+
+    // 2. Validate password
+    if (
+      !password ||
+      !validator.isStrongPassword(password, {
+        minLength: 8,
+        minLowercase: 1,
+        minUppercase: 1,
+        minNumbers: 1,
+        minSymbols: 1,
+      })
+    ) {
+      return res
+        .status(400)
+        .send(
+          "Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.",
+        );
+    }
+
+    // 3. Create user
+    const user = new User(req.body);
+
+    // 4. Save user to MongoDB
+    await user.save();
+
+    return res.status(201).send("User created successfully");
   } catch (err) {
-    res.status(400).send(err);
+    return res.status(400).send(err.message);
   }
 });
 
