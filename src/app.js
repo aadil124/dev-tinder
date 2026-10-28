@@ -1,64 +1,83 @@
 const express = require("express");
 const connectDB = require("./config/database");
-const app = express();
 const User = require("./models/user");
+const bcrypt = require("bcrypt");
 require("dotenv").config();
-const mongoose = require("mongoose");
-const validator = require("validator");
-app.use(express.json()); // middleware to parse JSON request bodies
 
-//get all users
+const {
+  validateEmail,
+  validatePassword,
+  validateUserId,
+  validateUpdateData,
+  validateSkills,
+} = require("./utils/validations");
+
+const app = express();
+
+app.use(express.json());
+
+// ========================================
+// GET ALL USERS
+// ========================================
 app.get("/feed", async (req, res) => {
-  const userList = await User.find();
-
   try {
+    const userList = await User.find().select("-password");
+
     if (userList.length === 0) {
       return res.status(404).send("No users found");
-    } else {
-      res.status(200).send(userList);
     }
+
+    return res.status(200).json(userList);
   } catch (err) {
-    res.status(500).send("Internal Server Error");
+    console.error("Get users error:", err);
+    return res.status(500).send("Internal Server Error");
   }
 });
 
-// get one user by email
+// ========================================
+// GET USER BY EMAIL
+// ========================================
 app.get("/user", async (req, res) => {
-  const userEmail = req.body.email; // Assuming the email is sent in the request body
+  const userEmail = req.query.email;
+
   try {
     if (!userEmail) {
       return res.status(400).send("Email is required");
     }
-    const user = await User.find({ email: userEmail }); // Find the user by email
-    if (user.length === 0) {
-      return res.status(404).send("User not found");
-    }
-    res.status(200).send(user);
-  } catch (err) {
-    res.status(500).send("Internal Server Error");
-  }
-});
 
-app.post("/signup", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // 1. Validate email
-    if (!email || !validator.isEmail(email)) {
+    if (!validateEmail(userEmail)) {
       return res.status(400).send("Invalid email format");
     }
 
-    // 2. Validate password
-    if (
-      !password ||
-      !validator.isStrongPassword(password, {
-        minLength: 8,
-        minLowercase: 1,
-        minUppercase: 1,
-        minNumbers: 1,
-        minSymbols: 1,
-      })
-    ) {
+    const user = await User.findOne({
+      email: userEmail.toLowerCase().trim(),
+    }).select("-password");
+
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+
+    return res.status(200).json(user);
+  } catch (err) {
+    console.error("Get user error:", err);
+    return res.status(500).send("Internal Server Error");
+  }
+});
+
+// ========================================
+// SIGNUP
+// ========================================
+app.post("/signup", async (req, res) => {
+  try {
+    const { firstName, lastName, email, password } = req.body;
+
+    // Validate email
+    if (!validateEmail(email)) {
+      return res.status(400).send("Invalid email format");
+    }
+
+    // Validate password
+    if (!validatePassword(password)) {
       return res
         .status(400)
         .send(
@@ -66,108 +85,99 @@ app.post("/signup", async (req, res) => {
         );
     }
 
-    // 3. Create user
-    const user = new User(req.body);
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 4. Save user to MongoDB
+    // Create user
+    const user = new User({
+      ...req.body,
+      firstName,
+      lastName,
+      email: email.toLowerCase().trim(),
+      password: hashedPassword,
+    });
+
     await user.save();
 
     return res.status(201).send("User created successfully");
   } catch (err) {
-    return res.status(400).send(err.message);
+    console.error("Signup error:", err);
+
+    // Handle duplicate email
+    if (err.code === 11000) {
+      return res.status(409).send("Email already exists");
+    }
+
+    // Handle Mongoose validation errors
+    if (err.name === "ValidationError") {
+      return res.status(400).json({
+        message: "User validation failed",
+        errors: Object.values(err.errors).map((error) => error.message),
+      });
+    }
+
+    return res.status(500).send("Unable to create user");
   }
 });
 
-// delete user by id
+// ========================================
+// DELETE USER BY ID
+// ========================================
 app.delete("/user", async (req, res) => {
-  const userId = req.body.userId;
+  const { userId } = req.body;
+
   try {
+    if (!validateUserId(userId)) {
+      return res.status(400).send("Invalid user ID");
+    }
+
     const deletedUser = await User.findByIdAndDelete(userId);
+
     if (!deletedUser) {
       return res.status(404).send("User not found");
-    } else {
-      res.status(200).send("User deleted successfully");
     }
+
+    return res.status(200).send("User deleted successfully");
   } catch (err) {
-    res.status(500).send("Internal Server Error");
+    console.error("Delete user error:", err);
+    return res.status(500).send("Internal Server Error");
   }
 });
 
-// Update user by ID
+// ========================================
+// UPDATE USER BY ID (PATCH)
+// ========================================
 app.patch("/user/:userId", async (req, res) => {
   const { userId } = req.params;
   const { updateData } = req.body;
 
   try {
-    // 1. Validate MongoDB user ID
-    if (!mongoose.isValidObjectId(userId)) {
+    // Validate user ID
+    if (!validateUserId(userId)) {
       return res.status(400).json({
         message: "Invalid user ID",
       });
     }
 
-    // 2. Validate updateData
-    if (
-      !updateData ||
-      typeof updateData !== "object" ||
-      Array.isArray(updateData)
-    ) {
-      return res.status(400).json({
-        message: "updateData must be a valid object",
-      });
+    // Validate update data
+    const validation = validateUpdateData(updateData);
+
+    if (!validation.valid) {
+      return res.status(400).json(validation);
     }
 
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({
-        message: "Update data cannot be empty",
-      });
-    }
-
-    // 3. Allow only specific fields to be updated
-    const allowedFields = [
-      "firstName",
-      "lastName",
-      "age",
-      "gender",
-      "phoneNumber",
-      "about",
-      "skills",
-      "photoUrl",
-    ];
-
-    const invalidFields = Object.keys(updateData).filter(
-      (field) => !allowedFields.includes(field),
-    );
-
-    if (invalidFields.length > 0) {
-      return res.status(400).json({
-        message: "Invalid fields provided",
-        invalidFields,
-      });
-    }
-
-    // 4. Validate skills: between 1 and 5 non-empty strings
+    // Validate skills
     if (updateData.skills !== undefined) {
-      const { skills } = updateData;
-
-      if (
-        !Array.isArray(skills) ||
-        skills.length < 1 ||
-        skills.length > 5 ||
-        !skills.every(
-          (skill) => typeof skill === "string" && skill.trim().length > 0,
-        )
-      ) {
+      if (!validateSkills(updateData.skills)) {
         return res.status(400).json({
           message: "Skills must contain between 1 and 5 non-empty strings",
         });
       }
 
-      // Remove surrounding whitespace from each skill
-      updateData.skills = skills.map((skill) => skill.trim());
+      updateData.skills = updateData.skills.map((skill) => skill.trim());
     }
 
-    // 5. Update user in MongoDB
+    // Update user
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: updateData },
@@ -175,34 +185,41 @@ app.patch("/user/:userId", async (req, res) => {
         returnDocument: "after",
         runValidators: true,
       },
-    );
+    ).select("-password");
 
-    // 6. Check whether user exists
     if (!updatedUser) {
       return res.status(404).json({
         message: "User not found",
       });
     }
 
-    // 7. Send success response
     return res.status(200).json({
       message: "User updated successfully",
       user: updatedUser,
     });
   } catch (err) {
-    console.error("Error updating user:", err);
+    console.error("Update user error:", err);
 
-    return res.status(400).json({
+    if (err.name === "ValidationError") {
+      return res.status(400).json({
+        message: "User validation failed",
+        errors: Object.values(err.errors).map((error) => error.message),
+      });
+    }
+
+    return res.status(500).json({
       message: "Failed to update user",
-      error: err.message,
     });
   }
 });
 
-// Connect to MongoDB
+// ========================================
+// CONNECT DATABASE AND START SERVER
+// ========================================
 connectDB()
   .then(() => {
     console.log("Database connected successfully");
+
     app.listen(3000, () => {
       console.log("Server is running on port 3000");
     });
