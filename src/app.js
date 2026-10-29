@@ -2,6 +2,9 @@ const express = require("express");
 const connectDB = require("./config/database");
 const User = require("./models/user");
 const bcrypt = require("bcrypt");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
+
 require("dotenv").config();
 
 const {
@@ -13,7 +16,7 @@ const {
 } = require("./utils/validations");
 
 const app = express();
-
+app.use(cookieParser());
 app.use(express.json());
 
 // ========================================
@@ -136,10 +139,37 @@ app.post("/login", async (req, res) => {
     if (!isPasswordValid) {
       return res.status(404).send("Invalid credentials");
     } else {
+      // create token and set it in the cookie
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+        expiresIn: "5h",
+      });
+
+      // sending a dummy token for demonstration purposes
+      res.cookie("token", token);
       return res.status(200).send("Login successful");
     }
   } catch (err) {
     console.error("Login error:", err);
+    return res.status(500).send("Internal Server Error");
+  }
+});
+
+// get Profile
+app.get("/profile", async (req, res) => {
+  try {
+    const cookies = req.cookies;
+    console.log("Cookies:", cookies);
+    const { token } = cookies;
+
+    if (!token) {
+      return res.status(401).send("Unauthorized: No token provided");
+    }
+    // find user in DB
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select("-password");
+    return res.status(200).json({ user });
+  } catch (err) {
+    console.error("Get profile error:", err);
     return res.status(500).send("Internal Server Error");
   }
 });
