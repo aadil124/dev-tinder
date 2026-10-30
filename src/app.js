@@ -4,7 +4,7 @@ const User = require("./models/user");
 const bcrypt = require("bcrypt");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
-
+const { userAuth } = require("./middlewares/auth");
 require("dotenv").config();
 
 const {
@@ -139,13 +139,12 @@ app.post("/login", async (req, res) => {
     if (!isPasswordValid) {
       return res.status(404).send("Invalid credentials");
     } else {
-      // create token and set it in the cookie
-      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-        expiresIn: "5h",
-      });
+      // Generate JWT using the User model method
+      const token = user.getJWT();
 
-      // sending a dummy token for demonstration purposes
+      // Set token in cookie
       res.cookie("token", token);
+
       return res.status(200).send("Login successful");
     }
   } catch (err) {
@@ -155,7 +154,7 @@ app.post("/login", async (req, res) => {
 });
 
 // get Profile
-app.get("/profile", async (req, res) => {
+app.get("/profile", userAuth, async (req, res) => {
   try {
     const cookies = req.cookies;
     console.log("Cookies:", cookies);
@@ -174,6 +173,14 @@ app.get("/profile", async (req, res) => {
   }
 });
 
+// send connection request
+app.post("/sendConnectionRequest", userAuth, async (req, res) => {
+  const { id, firstName, lastName } = req.body;
+  console.log("req.body", req.body);
+  console.log("First Name:", firstName);
+  console.log("Last Name:", lastName);
+  res.status(200).send("Connection request sent successfully");
+});
 // ========================================
 // DELETE USER BY ID
 // ========================================
