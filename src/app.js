@@ -239,40 +239,40 @@ app.patch("/user/:userId", async (req, res) => {
     }
 
     // Update user
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { $set: updateData },
-      {
-        returnDocument: "after",
-        runValidators: true,
-      },
-    ).select("-password");
+//     const updatedUser = await User.findByIdAndUpdate(
+//       userId,
+//       { $set: updateData },
+//       {
+//         returnDocument: "after",
+//         runValidators: true,
+//       },
+//     ).select("-password");
 
-    if (!updatedUser) {
-      return res.status(404).json({
-        message: "User not found",
-      });
-    }
+//     if (!updatedUser) {
+//       return res.status(404).json({
+//         message: "User not found",
+//       });
+//     }
 
-    return res.status(200).json({
-      message: "User updated successfully",
-      user: updatedUser,
-    });
-  } catch (err) {
-    console.error("Update user error:", err);
+//     return res.status(200).json({
+//       message: "User updated successfully",
+//       user: updatedUser,
+//     });
+//   } catch (err) {
+//     console.error("Update user error:", err);
 
-    if (err.name === "ValidationError") {
-      return res.status(400).json({
-        message: "User validation failed",
-        errors: Object.values(err.errors).map((error) => error.message),
-      });
-    }
+//     if (err.name === "ValidationError") {
+//       return res.status(400).json({
+//         message: "User validation failed",
+//         errors: Object.values(err.errors).map((error) => error.message),
+//       });
+//     }
 
-    return res.status(500).json({
-      message: "Failed to update user",
-    });
-  }
-});
+//     return res.status(500).json({
+//       message: "Failed to update user",
+//     });
+//   }
+// });
 
 // ========================================
 // CONNECT DATABASE AND START SERVER
