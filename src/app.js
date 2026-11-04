@@ -9,7 +9,7 @@ const app = express();
 app.use(cookieParser());
 app.use(express.json());
 app.use("/auth", authRouter);
-app.use("/profile", profileRouter);
+// app.use("/profile", profileRouter);
 
 // ========================================
 // CONNECT DATABASE AND START SERVER
