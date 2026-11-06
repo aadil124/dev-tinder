@@ -8,8 +8,8 @@ require("dotenv").config();
 const app = express();
 app.use(cookieParser());
 app.use(express.json());
-app.use("/auth", authRouter);
-app.use("/profile", profileRouter);
+app.use("/", authRouter);
+app.use("/", profileRouter);
 
 // ========================================
 // CONNECT DATABASE AND START SERVER

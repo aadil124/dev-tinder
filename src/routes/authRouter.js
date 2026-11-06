@@ -5,7 +5,7 @@ const bcrypt = require("bcrypt");
 const User = require("../models/user");
 
 // signup
-authRouter.post("/signup", async (req, res) => {
+authRouter.post("/auth/signup", async (req, res) => {
   try {
     const { firstName, lastName, email, password } = req.body;
 
@@ -59,7 +59,7 @@ authRouter.post("/signup", async (req, res) => {
 });
 
 // Login
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
@@ -87,4 +87,12 @@ authRouter.post("/login", async (req, res) => {
     return res.status(500).send("Internal Server Error");
   }
 });
+
+authRouter.post("/auth/logout", async (req, res) => {
+  res.cookie("token", null, {
+    expires: new Date(Date.now()),
+  });
+  res.send("Logout Successfully!!");
+});
+
 module.exports = authRouter;
