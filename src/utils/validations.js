@@ -85,10 +85,30 @@ const validateSkills = (skills) => {
   );
 };
 
+const validateEditProfileData = (req) => {
+  const allowedEditFields = [
+    "firstName",
+    "lastName",
+    "about",
+    "skills",
+    "photoUrl",
+    "age",
+    "gender",
+    "phoneNumber",
+  ];
+
+  const isEditAllowed = Object.keys(req.body).every((field) =>
+    allowedEditFields.includes(key),
+  );
+
+  return isEditAllowed;
+};
+
 module.exports = {
   validateEmail,
   validatePassword,
   validateUserId,
   validateUpdateData,
   validateSkills,
+  validateEditProfileData,
 };
