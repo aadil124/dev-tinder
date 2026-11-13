@@ -97,11 +97,67 @@ const validateEditProfileData = (req) => {
     "phoneNumber",
   ];
 
-  const isEditAllowed = Object.keys(req.body).every((field) =>
+  const updateData = req.body;
+
+  // Check empty request
+  if (!updateData || Object.keys(updateData).length === 0) {
+    return false;
+  }
+
+  // Check allowed fields
+  const isEditAllowed = Object.keys(updateData).every((field) =>
     allowedEditFields.includes(field),
   );
 
-  return isEditAllowed;
+  if (!isEditAllowed) return false;
+
+  // Validate individual fields
+  if (
+    updateData.firstName !== undefined &&
+    (typeof updateData.firstName !== "string" ||
+      updateData.firstName.trim().length === 0)
+  )
+    return false;
+
+  if (
+    updateData.lastName !== undefined &&
+    typeof updateData.lastName !== "string"
+  )
+    return false;
+
+  if (updateData.about !== undefined && typeof updateData.about !== "string")
+    return false;
+
+  if (updateData.skills !== undefined && !validateSkills(updateData.skills))
+    return false;
+
+  if (
+    updateData.photoUrl !== undefined &&
+    typeof updateData.photoUrl !== "string"
+  )
+    return false;
+
+  if (
+    updateData.age !== undefined &&
+    (!Number.isInteger(updateData.age) ||
+      updateData.age < 18 ||
+      updateData.age > 100)
+  )
+    return false;
+
+  if (
+    updateData.gender !== undefined &&
+    !["male", "female", "other"].includes(updateData.gender)
+  )
+    return false;
+
+  if (
+    updateData.phoneNumber !== undefined &&
+    typeof updateData.phoneNumber !== "string"
+  )
+    return false;
+
+  return true;
 };
 
 module.exports = {
