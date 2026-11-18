@@ -1,43 +1,64 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/user");
 
+// Admin authentication
 const adminAuth = (req, res, next) => {
   const token = "xyz1"; // Temporary token for learning
+
   const authenticated = token === "xyz";
 
   if (!authenticated) {
-    return res.status(401).send("Unauthorized");
+    return res.status(401).json({
+      message: "Unauthorized: Admin access denied",
+    });
   }
 
   next();
 };
 
-const userAuth = (req, res, next) => {
+// User authentication
+const userAuth = async (req, res, next) => {
   try {
-    // Get token from cookies
-    const { token } = req.cookies;
+    // Check token cookie
+    const { token } = req.cookies || {};
 
     if (!token) {
-      return res.status(401).send("Unauthorized: No token provided");
+      return res.status(401).json({
+        message: "Unauthorized: No token provided",
+      });
     }
 
-    // Verify JWT token
+    // Verify JWT
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Attach decoded user information to request
-    req.user = decoded;
+    // Fetch user from MongoDB
+    const user = await User.findById(decoded.id);
 
-    // Allow request to continue
+    if (!user) {
+      return res.status(401).json({
+        message: "Unauthorized: User not found",
+      });
+    }
+
+    // Attach Mongoose document to request
+    req.user = user;
+
     next();
-  } catch (err) {
-    if (err.name === "TokenExpiredError") {
-      return res.status(401).send("Unauthorized: Token expired");
+  } catch (error) {
+    console.error("Authentication error:", error.message);
+
+    if (
+      error.name === "TokenExpiredError" ||
+      error.name === "JsonWebTokenError"
+    ) {
+      return res.status(401).json({
+        message: "Unauthorized: Invalid or expired token",
+      });
     }
 
-    if (err.name === "JsonWebTokenError") {
-      return res.status(401).send("Unauthorized: Invalid token");
-    }
-
-    return res.status(500).send("Internal Server Error");
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
   }
 };
 
