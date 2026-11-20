@@ -1,98 +1,166 @@
 const express = require("express");
-const { validateEmail, validatePassword } = require("../utils/validations");
 const authRouter = express.Router();
-const bcrypt = require("bcrypt");
+
 const User = require("../models/user");
 
-// signup
+const { validateEmail, validatePassword } = require("../utils/validations");
+
+// ========================================
+// SIGNUP
+// ========================================
 authRouter.post("/auth/signup", async (req, res) => {
   try {
-    const { firstName, lastName, email, password } = req.body;
+    const { firstName, lastName, email, password, age, gender, phoneNumber } =
+      req.body;
+
+    // Validate required fields
+    if (
+      !firstName ||
+      !lastName ||
+      !email ||
+      !password ||
+      age === undefined ||
+      !gender ||
+      !phoneNumber
+    ) {
+      return res.status(400).json({
+        message: "All required fields must be provided",
+      });
+    }
 
     // Validate email
     if (!validateEmail(email)) {
-      return res.status(400).send("Invalid email format");
+      return res.status(400).json({
+        message: "Invalid email format",
+      });
     }
 
     // Validate password
     if (!validatePassword(password)) {
-      return res
-        .status(400)
-        .send(
-          "Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.",
-        );
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    const user = new User({
-      ...req.body,
-      firstName,
-      lastName,
-      email: email.toLowerCase().trim(),
-      password: hashedPassword,
-    });
-
-    await user.save();
-
-    return res.status(201).send("User created successfully");
-  } catch (err) {
-    console.error("Signup error:", err);
-
-    // Handle duplicate email
-    if (err.code === 11000) {
-      return res.status(409).send("Email already exists");
-    }
-
-    // Handle Mongoose validation errors
-    if (err.name === "ValidationError") {
       return res.status(400).json({
-        message: "User validation failed",
-        errors: Object.values(err.errors).map((error) => error.message),
+        message:
+          "Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.",
       });
     }
 
-    return res.status(500).send("Unable to create user");
+    // Create user
+    const user = new User({
+      firstName,
+      lastName,
+      email: email.toLowerCase().trim(),
+      password,
+      age,
+      gender,
+      phoneNumber,
+    });
+
+    // Save user (pre-save hook hashes password)
+    await user.save();
+
+    return res.status(201).json({
+      message: "User created successfully",
+    });
+  } catch (error) {
+    console.error("Signup error:", error);
+
+    // Duplicate email
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "Email already exists",
+      });
+    }
+
+    // Mongoose validation error
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        message: "User validation failed",
+        errors: Object.values(error.errors).map((err) => err.message),
+      });
+    }
+
+    return res.status(500).json({
+      message: "Unable to create user",
+    });
   }
 });
 
-// Login
+// ========================================
+// LOGIN
+// ========================================
 authRouter.post("/auth/login", async (req, res) => {
-  const { email, password } = req.body;
-
   try {
+    const { email, password } = req.body;
+
+    // Check required fields
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password are required",
+      });
+    }
+
     // Validate email
+    if (!validateEmail(email)) {
+      return res.status(400).json({
+        message: "Invalid email format",
+      });
+    }
+
+    // Find user
     const user = await User.findOne({
       email: email.toLowerCase().trim(),
     });
+
     if (!user) {
-      return res.status(404).send("Invalid credentials");
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
     }
+
+    // Compare password
     const isPasswordValid = await user.comparePassword(password);
+
     if (!isPasswordValid) {
-      return res.status(404).send("Invalid credentials");
-    } else {
-      // Generate JWT using the User model method
-      const token = user.getJWT();
-
-      // Set token in cookie
-      res.cookie("token", token);
-
-      return res.status(200).send("Login successful");
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
     }
-  } catch (err) {
-    console.error("Login error:", err);
-    return res.status(500).send("Internal Server Error");
+
+    // Generate JWT
+    const token = user.getJWT();
+
+    // Set authentication cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 5 * 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({
+      message: "Login successful",
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
   }
 });
 
-authRouter.post("/auth/logout", async (req, res) => {
-  res.cookie("token", null, {
-    expires: new Date(Date.now()),
+// ========================================
+// LOGOUT
+// ========================================
+authRouter.post("/auth/logout", (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
   });
-  res.send("Logout Successfully!!");
+
+  return res.status(200).json({
+    message: "Logout successful",
+  });
 });
 
 module.exports = authRouter;
