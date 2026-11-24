@@ -8,6 +8,7 @@ const connectDB = require("./config/database");
 
 const authRouter = require("./routes/authRouter");
 const profileRouter = require("./routes/profileRouter");
+const requestRouter = require("./routes/requestRouter");
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use(cookieParser());
 
 app.use("/", authRouter);
 app.use("/", profileRouter);
+app.use("/", requestRouter);
 
 // Health check
 app.get("/", (req, res) => {
