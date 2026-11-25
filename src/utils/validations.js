@@ -1,12 +1,16 @@
 const validator = require("validator");
 const mongoose = require("mongoose");
 
-// Validate email
+// ========================================
+// EMAIL VALIDATION
+// ========================================
 const validateEmail = (email) => {
-  return typeof email === "string" && validator.isEmail(email);
+  return typeof email === "string" && validator.isEmail(email.trim());
 };
 
-// Validate password
+// ========================================
+// PASSWORD VALIDATION
+// ========================================
 const validatePassword = (password) => {
   return (
     typeof password === "string" &&
@@ -20,142 +24,190 @@ const validatePassword = (password) => {
   );
 };
 
-// Validate MongoDB ObjectId
+// ========================================
+// MONGODB OBJECT ID VALIDATION
+// ========================================
 const validateUserId = (userId) => {
   return mongoose.isValidObjectId(userId);
 };
 
-// Validate update data
-const validateUpdateData = (updateData) => {
-  if (
-    !updateData ||
-    typeof updateData !== "object" ||
-    Array.isArray(updateData)
-  ) {
-    return {
-      valid: false,
-      message: "updateData must be a valid object",
-    };
+// ========================================
+// PHOTO URL VALIDATION
+// ========================================
+const validatePhotoUrl = (photoUrl) => {
+  if (typeof photoUrl !== "string") {
+    return false;
   }
 
-  if (Object.keys(updateData).length === 0) {
-    return {
-      valid: false,
-      message: "Update data cannot be empty",
-    };
+  const trimmedUrl = photoUrl.trim();
+
+  if (!trimmedUrl || trimmedUrl.length > 2048) {
+    return false;
   }
+
+  return validator.isURL(trimmedUrl, {
+    require_protocol: true,
+    protocols: ["http", "https"],
+    require_tld: true,
+  });
+};
+
+// ========================================
+// SKILLS VALIDATION
+// ========================================
+const validateSkills = (skills) => {
+  if (!Array.isArray(skills)) {
+    return false;
+  }
+
+  // Allow empty array to clear existing skills
+  if (skills.length > 5) {
+    return false;
+  }
+
+  const normalizedSkills = [];
+
+  for (const skill of skills) {
+    if (
+      typeof skill !== "string" ||
+      skill.trim().length === 0 ||
+      skill.trim().length > 30
+    ) {
+      return false;
+    }
+
+    normalizedSkills.push(skill.trim().toLowerCase());
+  }
+
+  // Prevent duplicate skills
+  return new Set(normalizedSkills).size === normalizedSkills.length;
+};
+
+// ========================================
+// NAME VALIDATION
+// ========================================
+const validateName = (name) => {
+  return (
+    typeof name === "string" &&
+    name.trim().length >= 2 &&
+    name.trim().length <= 50
+  );
+};
+
+// ========================================
+// ABOUT VALIDATION
+// ========================================
+const validateAbout = (about) => {
+  return typeof about === "string" && about.trim().length <= 500;
+};
+
+// ========================================
+// AGE VALIDATION
+// ========================================
+const validateAge = (age) => {
+  return Number.isInteger(age) && age >= 18 && age <= 100;
+};
+
+// ========================================
+// GENDER VALIDATION
+// ========================================
+const validateGender = (gender) => {
+  return ["male", "female", "other"].includes(gender);
+};
+
+// ========================================
+// PHONE NUMBER VALIDATION
+// ========================================
+const validatePhoneNumber = (phoneNumber) => {
+  return (
+    typeof phoneNumber === "string" && /^\+?[0-9]{10,15}$/.test(phoneNumber)
+  );
+};
+
+// ========================================
+// PROFILE UPDATE VALIDATION
+// ========================================
+const validateEditProfileData = (req) => {
+  const updateData = req.body;
 
   const allowedFields = [
     "firstName",
     "lastName",
-    "age",
-    "gender",
-    "phoneNumber",
     "about",
     "skills",
     "photoUrl",
+    "age",
+    "gender",
+    "phoneNumber",
   ];
 
+  // Check request body
+  if (
+    !updateData ||
+    typeof updateData !== "object" ||
+    Array.isArray(updateData) ||
+    Object.keys(updateData).length === 0
+  ) {
+    return false;
+  }
+
+  // Check allowed fields
   const invalidFields = Object.keys(updateData).filter(
     (field) => !allowedFields.includes(field),
   );
 
   if (invalidFields.length > 0) {
-    return {
-      valid: false,
-      message: "Invalid fields provided",
-      invalidFields,
-    };
-  }
-
-  return {
-    valid: true,
-  };
-};
-
-// Validate skills
-const validateSkills = (skills) => {
-  return (
-    Array.isArray(skills) &&
-    skills.length >= 1 &&
-    skills.length <= 5 &&
-    skills.every(
-      (skill) => typeof skill === "string" && skill.trim().length > 0,
-    )
-  );
-};
-
-const validateEditProfileData = (req) => {
-  const allowedEditFields = [
-    "firstName",
-    "lastName",
-    "about",
-    "skills",
-    "photoUrl",
-    "age",
-    "gender",
-    "phoneNumber",
-  ];
-
-  const updateData = req.body;
-
-  // Check empty request
-  if (!updateData || Object.keys(updateData).length === 0) {
     return false;
   }
 
-  // Check allowed fields
-  const isEditAllowed = Object.keys(updateData).every((field) =>
-    allowedEditFields.includes(field),
-  );
-
-  if (!isEditAllowed) return false;
-
-  // Validate individual fields
+  // Validate firstName
   if (
     updateData.firstName !== undefined &&
-    (typeof updateData.firstName !== "string" ||
-      updateData.firstName.trim().length === 0)
-  )
+    !validateName(updateData.firstName)
+  ) {
     return false;
+  }
 
-  if (
-    updateData.lastName !== undefined &&
-    typeof updateData.lastName !== "string"
-  )
+  // Validate lastName
+  if (updateData.lastName !== undefined && !validateName(updateData.lastName)) {
     return false;
+  }
 
-  if (updateData.about !== undefined && typeof updateData.about !== "string")
+  // Validate about
+  if (updateData.about !== undefined && !validateAbout(updateData.about)) {
     return false;
+  }
 
-  if (updateData.skills !== undefined && !validateSkills(updateData.skills))
+  // Validate skills
+  if (updateData.skills !== undefined && !validateSkills(updateData.skills)) {
     return false;
+  }
 
+  // Validate photoUrl
   if (
     updateData.photoUrl !== undefined &&
-    typeof updateData.photoUrl !== "string"
-  )
+    !validatePhotoUrl(updateData.photoUrl)
+  ) {
     return false;
+  }
 
-  if (
-    updateData.age !== undefined &&
-    (!Number.isInteger(updateData.age) ||
-      updateData.age < 18 ||
-      updateData.age > 100)
-  )
+  // Validate age
+  if (updateData.age !== undefined && !validateAge(updateData.age)) {
     return false;
+  }
 
-  if (
-    updateData.gender !== undefined &&
-    !["male", "female", "other"].includes(updateData.gender)
-  )
+  // Validate gender
+  if (updateData.gender !== undefined && !validateGender(updateData.gender)) {
     return false;
+  }
 
+  // Validate phoneNumber
   if (
     updateData.phoneNumber !== undefined &&
-    typeof updateData.phoneNumber !== "string"
-  )
+    !validatePhoneNumber(updateData.phoneNumber)
+  ) {
     return false;
+  }
 
   return true;
 };
@@ -164,7 +216,12 @@ module.exports = {
   validateEmail,
   validatePassword,
   validateUserId,
-  validateUpdateData,
+  validatePhotoUrl,
   validateSkills,
+  validateName,
+  validateAbout,
+  validateAge,
+  validateGender,
+  validatePhoneNumber,
   validateEditProfileData,
 };
