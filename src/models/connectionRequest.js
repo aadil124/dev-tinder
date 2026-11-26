@@ -1,20 +1,25 @@
 const mongoose = require("mongoose");
+
 const connectionRequestSchema = new mongoose.Schema(
   {
     fromUserId: {
       type: mongoose.Schema.Types.ObjectId,
-      require: true,
+      ref: "User",
+      required: true,
     },
+
     toUserId: {
       type: mongoose.Schema.Types.ObjectId,
-      require: true,
+      ref: "User",
+      required: true,
     },
+
     status: {
       type: String,
-      require: true,
+      required: true,
       enum: {
         values: ["interested", "ignored", "accepted", "rejected"],
-        message: `{VALUE} is incorrect status type`,
+        message: "{VALUE} is an incorrect status type",
       },
     },
   },
@@ -23,7 +28,14 @@ const connectionRequestSchema = new mongoose.Schema(
   },
 );
 
-const ConnectionRequestModel = new mongoose.model(
+// Prevent users from sending requests to themselves
+connectionRequestSchema.pre("save", function () {
+  if (this.fromUserId.equals(this.toUserId)) {
+    throw new Error("Cannot send a connection request to yourself!");
+  }
+});
+
+const ConnectionRequestModel = mongoose.model(
   "ConnectionRequest",
   connectionRequestSchema,
 );
