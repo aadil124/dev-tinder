@@ -2,19 +2,19 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 
 // Admin authentication
-const adminAuth = (req, res, next) => {
-  const token = "xyz1"; // Temporary token for learning
+// const adminAuth = (req, res, next) => {
+//   const token = "xyz1"; // Temporary token for learning
 
-  const authenticated = token === "xyz";
+//   const authenticated = token === "xyz";
 
-  if (!authenticated) {
-    return res.status(401).json({
-      message: "Unauthorized: Admin access denied",
-    });
-  }
+//   if (!authenticated) {
+//     return res.status(401).json({
+//       message: "Unauthorized: Admin access denied",
+//     });
+//   }
 
-  next();
-};
+//   next();
+// };
 
 // User authentication
 const userAuth = async (req, res, next) => {
